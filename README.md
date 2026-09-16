@@ -43,6 +43,25 @@ Windows 下也可以双击 `启动便签.bat`（用 `pyw` 启动，不弹控制�
 
 ---
 
+## 打包成独立应用
+
+不想装 Python 的话，可以打包成单个 exe：
+
+```bash
+build.bat                 # 或手动执行下面两步
+pip install pyinstaller pillow
+python tools/make_icon.py
+pyinstaller --onefile --noconsole --name PinJot --icon assets/pinjot.ico pin_note.py
+```
+
+产物在 `dist\PinJot.exe`，约 11 MB，双击即用，拷到别的 Windows 电脑上也能跑。
+
+- 图标由 `tools/make_icon.py` 用代码绘制（配色和 `config.py` 一致），
+  改主题后重新跑一次即可生成新图标
+- 打包后的数据仍存在 `%APPDATA%\PinJot\`，和脚本版共用同一份数据
+
+---
+
 ## 快捷键
 
 | 按键 | 作用 |
@@ -70,7 +89,10 @@ pinjot/
   plan_page.py       计划页（PlanPageMixin）
   window.py          主窗口 PinJot：骨架、窗口行为、保存调度
 pin_note.py          启动入口
+tools/make_icon.py   用代码绘制应用图标
+assets/              图标文件（.ico / 预览 .png）
 启动便签.bat          Windows 双击启动
+build.bat             一键打包 exe
 ```
 
 分层原则：`config` / `storage` / `widgets` 是底层，不依赖页面；
