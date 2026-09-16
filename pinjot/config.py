@@ -3,8 +3,8 @@
 
 import sys
 
-APP_NAME = "PinNote"
-APP_TITLE = "我的便签"
+APP_NAME = "PinJot"      # 同时作为数据目录名（%APPDATA%\PinJot）
+APP_TITLE = "钉记"
 IS_WIN = sys.platform.startswith("win")
 
 # 配色：暖米白纸感

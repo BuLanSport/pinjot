@@ -20,7 +20,7 @@
   window.py       主窗口 PinNote 与程序入口
 """
 
-from .window import PinNote, main
+from .window import PinJot, main
 
-__all__ = ["PinNote", "main"]
-__version__ = "1.0.0"
+__all__ = ["PinJot", "main"]
+__version__ = "1.1.0"

@@ -12,9 +12,21 @@ from pathlib import Path
 from .config import APP_NAME, DEF_W, DEF_H, WELCOME
 
 
+LEGACY_APP_DIRS = ("PinNote",)   # 旧版本的数据目录，首次启动自动迁移
+
+
 def _data_dir() -> Path:
     base = os.environ.get("APPDATA") or os.path.expanduser("~")
     p = Path(base) / APP_NAME
+    if not (p / "data.json").exists():
+        for legacy in LEGACY_APP_DIRS:
+            old = Path(base) / legacy
+            if (old / "data.json").exists():
+                try:
+                    shutil.copytree(old, p, dirs_exist_ok=True)
+                except Exception:
+                    pass
+                break
     try:
         p.mkdir(parents=True, exist_ok=True)
     except Exception:

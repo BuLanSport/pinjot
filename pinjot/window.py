@@ -16,7 +16,7 @@ from .storage import DATA_FILE, load_data, save_data
 from .widgets import FlatButton, Tooltip
 
 
-class PinNote(NotePageMixin, PlanPageMixin):
+class PinJot(NotePageMixin, PlanPageMixin):
     """悬浮便签主窗口"""
 
     def __init__(self):
@@ -498,4 +498,4 @@ def main():
                 ctypes.windll.user32.SetProcessDPIAware()
             except Exception:
                 pass
-    PinNote().run()
+    PinJot().run()
