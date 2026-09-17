@@ -28,6 +28,7 @@ class PinJot(NotePageMixin, PlanPageMixin):
         self._save_job = None
         self._dirty = False
         self._loading = False
+        self._note_ready = False    # 编辑器是否已被填充过（见 sync_note）
         self._focus_id = None
         self._tab_ready = False
 

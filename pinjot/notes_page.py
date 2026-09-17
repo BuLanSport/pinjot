@@ -131,13 +131,18 @@ class NotePageMixin:
             self.txt.mark_set("insert", "1.0")
             self.txt.see("1.0")
             self.lbl_note_time.configure(text=n.get("updated", ""))
+            self._note_ready = True     # 从这一刻起编辑器内容才代表真实数据
         finally:
             self._loading = False
 
     def sync_note(self):
         """把编辑器里的内容写回数据模型"""
-        # _rebuilding：界面重建期间编辑器是空的，不能拿它覆盖真实内容
-        if self._loading or getattr(self, "_rebuilding", False):
+        # 三种情况下编辑器内容都不代表真实数据，必须挡住：
+        #   _loading        —— 正在往编辑器灌数据
+        #   not _note_ready —— 编辑器还没被填充过（启动阶段）
+        #   _rebuilding     —— 界面正在重建，编辑器是新建的空控件
+        if (self._loading or not getattr(self, "_note_ready", False)
+                or getattr(self, "_rebuilding", False)):
             return
         n = self.note
         n["content"] = self.txt.get("1.0", "end-1c")
