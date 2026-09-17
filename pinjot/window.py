@@ -146,6 +146,12 @@ class PinJot(NotePageMixin, PlanPageMixin):
         self.btn_min.pack(side="right", fill="y")
         Tooltip(self.btn_min, "隐藏到托盘（点托盘图标唤回）")
 
+        self.btn_set = FlatButton(h, "⚙", command=self.open_settings,
+                                  bg=C["header"], fg=C["muted"],
+                                  hover=C["hover"], font=self.f_body, padx=9)
+        self.btn_set.pack(side="right", fill="y")
+        Tooltip(self.btn_set, "设置：主题、透明度、字号")
+
         # 拖动
         for w in (h, self.lbl_title):
             w.bind("<Button-1>", self._drag_start)
@@ -260,6 +266,15 @@ class PinJot(NotePageMixin, PlanPageMixin):
     def _popup_menu(self, event):
         try:
             self.menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.menu.grab_release()
+
+    def open_settings(self):
+        """点右上角齿轮时，把设置菜单挂在按钮下方弹出"""
+        x = self.btn_set.winfo_rootx()
+        y = self.btn_set.winfo_rooty() + self.btn_set.winfo_height()
+        try:
+            self.menu.tk_popup(x, y)
         finally:
             self.menu.grab_release()
 
