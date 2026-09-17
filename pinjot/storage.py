@@ -60,8 +60,8 @@ def default_data() -> dict:
         ],
         "ui": {
             "x": None, "y": None, "w": DEF_W, "h": DEF_H,
-            "topmost": True, "collapsed": False, "tab": "note",
-            "opacity": 1.0, "font_size": 10,
+            "topmost": True, "tab": "note",
+            "opacity": 1.0, "font_size": 10, "theme": "paper",
         },
     }
 

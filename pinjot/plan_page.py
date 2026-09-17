@@ -54,7 +54,8 @@ class PlanPageMixin:
             "<Configure>",
             lambda e: self.task_canvas.itemconfigure(self.task_win,
                                                      width=e.width))
-        self.root.bind_all("<MouseWheel>", self._on_wheel, add="+")
+        # 不用 add="+"：切换主题会重建界面，叠加会导致滚动变快
+        self.root.bind_all("<MouseWheel>", self._on_wheel)
 
     # ------------------------------------------------------------------ #
     # 渲染

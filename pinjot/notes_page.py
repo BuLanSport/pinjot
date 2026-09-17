@@ -136,7 +136,8 @@ class NotePageMixin:
 
     def sync_note(self):
         """把编辑器里的内容写回数据模型"""
-        if self._loading:
+        # _rebuilding：界面重建期间编辑器是空的，不能拿它覆盖真实内容
+        if self._loading or getattr(self, "_rebuilding", False):
             return
         n = self.note
         n["content"] = self.txt.get("1.0", "end-1c")

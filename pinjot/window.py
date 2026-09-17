@@ -8,8 +8,9 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import font as tkfont
 
-from .config import (APP_NAME, APP_TITLE, C, DEF_H, DEF_W, FONT_FAMILY,
-                     HDR_H, ICON_PATH, IS_WIN, MIN_H, MIN_W, STA_H, TAB_H)
+from .config import (APP_NAME, APP_TITLE, C, DEFAULT_THEME, DEF_H, DEF_W,
+                     FONT_FAMILY, HDR_H, ICON_PATH, IS_WIN, MIN_H, MIN_W,
+                     STA_H, TAB_H, THEME_LABELS, THEME_LIST, use_theme)
 from .notes_page import NotePageMixin
 from .plan_page import PlanPageMixin
 from .storage import DATA_FILE, load_data, save_data
@@ -23,6 +24,7 @@ class PinJot(NotePageMixin, PlanPageMixin):
     def __init__(self):
         self.data = load_data()
         self.ui = self.data["ui"]
+        self.ui["theme"] = use_theme(self.ui.get("theme", DEFAULT_THEME))
         self._save_job = None
         self._dirty = False
         self._loading = False
@@ -225,6 +227,19 @@ class PinJot(NotePageMixin, PlanPageMixin):
         m.add_command(label="📌  置顶开关", command=self.toggle_topmost)
         m.add_command(label="🔽  隐藏到托盘", command=self.hide_to_tray)
         m.add_separator()
+
+        # 颜色主题（单选）
+        self.var_theme = tk.StringVar(value=self.ui.get("theme", DEFAULT_THEME))
+        sub = tk.Menu(m, tearoff=0, bg=C["card"], fg=C["text"],
+                      activebackground=C["accent_s"],
+                      activeforeground=C["accent"], bd=0, relief="flat",
+                      font=self.f_body)
+        for key, label in THEME_LIST:
+            sub.add_radiobutton(label=label, value=key,
+                                variable=self.var_theme,
+                                command=lambda k=key: self.set_theme(k))
+        m.add_cascade(label="🎨  颜色主题", menu=sub)
+        m.add_separator()
         for pct in (100, 92, 85, 75):
             m.add_command(label=f"透明度 {pct}%",
                           command=lambda p=pct: self.set_opacity(p / 100))
@@ -353,6 +368,52 @@ class PinJot(NotePageMixin, PlanPageMixin):
         if self._dirty:
             self.flush_save()
         self.root.after(30000, self._tick_save)
+
+    # ------------------------------------------------------------------ #
+    # 颜色主题
+    # ------------------------------------------------------------------ #
+    def set_theme(self, name):
+        """切换主题。配色在控件创建时就固化了，所以直接重建一遍界面。"""
+        if name == self.ui.get("theme") or name not in THEME_LABELS:
+            return
+        self.ui["theme"] = name
+        self._rebuild_ui()
+        self.set_status(f"主题：{THEME_LABELS[name]}")
+        self.schedule_save()
+
+    def _rebuild_ui(self):
+        """保留位置/尺寸/标签页/便签视图，按新主题重建全部控件。"""
+        self.sync_note()
+        geo = self.root.geometry()
+        tab = self.ui.get("tab", "note")
+        note_view = self._note_view
+        note_id = self.data.get("active_note")
+
+        self.outer.destroy()
+        for old in (getattr(self, "menu", None),):
+            if old is not None:
+                try:
+                    old.destroy()
+                except Exception:
+                    pass
+
+        use_theme(self.ui.get("theme", DEFAULT_THEME))
+        self.root.configure(bg=C["border"])
+        self._init_fonts()
+        self._tab_ready = False
+
+        self._rebuilding = True     # 期间禁止用空编辑器覆盖便签内容
+        try:
+            self._build_ui()
+            self.root.geometry(geo)
+            self._load_notes()
+            self._render_tasks()
+            self.switch_tab("plan" if tab == "plan" else "note")
+            if tab != "plan" and note_view == "edit" and note_id:
+                self._open_note(note_id)
+        finally:
+            self._rebuilding = False
+        self.root.update_idletasks()
 
     def set_opacity(self, value):
         self.ui["opacity"] = value
