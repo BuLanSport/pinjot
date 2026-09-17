@@ -15,7 +15,9 @@ py tools\make_icon.py || goto :fail
 
 echo [3/3] 开始打包...
 py -m PyInstaller --noconfirm --clean --onefile --noconsole ^
-    --name PinJot --icon assets\pinjot.ico pin_note.py || goto :fail
+    --name PinJot --icon assets\pinjot.ico ^
+    --add-data "assets\pinjot.ico;assets" ^
+    pin_note.py || goto :fail
 
 echo.
 echo 打包完成：dist\PinJot.exe

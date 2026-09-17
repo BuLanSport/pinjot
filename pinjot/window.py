@@ -9,10 +9,11 @@ import tkinter as tk
 from tkinter import font as tkfont
 
 from .config import (APP_NAME, APP_TITLE, C, DEF_H, DEF_W, FONT_FAMILY,
-                     HDR_H, IS_WIN, MIN_H, MIN_W, STA_H, TAB_H)
+                     HDR_H, ICON_PATH, IS_WIN, MIN_H, MIN_W, STA_H, TAB_H)
 from .notes_page import NotePageMixin
 from .plan_page import PlanPageMixin
 from .storage import DATA_FILE, load_data, save_data
+from .tray import TrayIcon
 from .widgets import FlatButton, Tooltip
 
 
@@ -39,6 +40,8 @@ class PinJot(NotePageMixin, PlanPageMixin):
         self._render_tasks()
         self._restore_ui()
         self._init_hotkey()
+        self._init_tray()
+        self.root.after(30000, self._tick_save)   # 兜底自动保存
 
     # ------------------------------------------------------------------ #
     # 初始化
@@ -135,17 +138,17 @@ class PinJot(NotePageMixin, PlanPageMixin):
         self.btn_close.pack(side="right", fill="y")
         Tooltip(self.btn_close, "关闭（自动保存）")
 
-        self.btn_min = FlatButton(h, "—", command=self.toggle_collapse,
+        self.btn_min = FlatButton(h, "—", command=self.hide_to_tray,
                                   bg=C["header"], fg=C["muted"],
                                   font=self.f_body, padx=9)
         self.btn_min.pack(side="right", fill="y")
-        Tooltip(self.btn_min, "折叠 / 展开")
+        Tooltip(self.btn_min, "隐藏到托盘（点托盘图标唤回）")
 
         # 拖动
         for w in (h, self.lbl_title):
             w.bind("<Button-1>", self._drag_start)
             w.bind("<B1-Motion>", self._drag_move)
-            w.bind("<Double-Button-1>", lambda e: self.toggle_collapse())
+            w.bind("<Double-Button-1>", lambda e: self.hide_to_tray())
         self.root.bind("<Button-1>", self._drag_start, add="+")
         self.root.bind("<B1-Motion>", self._drag_move, add="+")
 
@@ -220,7 +223,7 @@ class PinJot(NotePageMixin, PlanPageMixin):
                     font=self.f_body)
         self.menu = m
         m.add_command(label="📌  置顶开关", command=self.toggle_topmost)
-        m.add_command(label="↕  折叠 / 展开", command=self.toggle_collapse)
+        m.add_command(label="🔽  隐藏到托盘", command=self.hide_to_tray)
         m.add_separator()
         for pct in (100, 92, 85, 75):
             m.add_command(label=f"透明度 {pct}%",
@@ -293,23 +296,63 @@ class PinJot(NotePageMixin, PlanPageMixin):
         self.set_status("已钉在最上层" if self.ui["topmost"]
                         else "已取消置顶（Ctrl+Alt+N 可唤回）")
 
-    def toggle_collapse(self):
-        collapsed = not bool(self.ui.get("collapsed", False))
-        self.ui["collapsed"] = collapsed
-        if collapsed:
-            self._expand_h = self.root.winfo_height()
-            self.body.pack_forget()
-            self.status.pack_forget()
-            self.grip.place_forget()
-            self.root.geometry(f"{self.root.winfo_width()}x{HDR_H + TAB_H + 2}")
+    # ------------------------------------------------------------------ #
+    # 显示 / 隐藏（托盘）
+    # ------------------------------------------------------------------ #
+    def hide_to_tray(self):
+        """藏进系统托盘：先保存，再隐藏窗口"""
+        self.flush_save(force=True)
+        self.root.withdraw()
+        if self.tray.ok:
+            self.tray.set_tip(f"{APP_NAME} · 已隐藏，点击唤回")
+        self.set_status("已隐藏到托盘")
+
+    def show_window(self):
+        self.root.deiconify()
+        self.root.lift()
+        if self.ui.get("topmost", True):
+            self.root.attributes("-topmost", True)
+        if self.tray.ok:
+            self.tray.set_tip(f"{APP_NAME} · 运行中")
+        self.set_status("已唤回")
+
+    def toggle_visible(self):
+        if self.root.state() == "withdrawn" or not self.root.winfo_viewable():
+            self.show_window()
         else:
-            h = getattr(self, "_expand_h", DEF_H)
-            self.status.pack(fill="x", side="bottom", before=self.body)
-            self.body.pack(fill="both", expand=True)
-            self.grip.place(relx=1.0, rely=1.0, anchor="se")
-            self.root.geometry(f"{self.root.winfo_width()}x{max(MIN_H, h)}")
-        self.set_status("已折叠" if collapsed else "就绪")
-        self.schedule_save()
+            self.hide_to_tray()
+
+    # ------------------------------------------------------------------ #
+    # 系统托盘
+    # ------------------------------------------------------------------ #
+    def _init_tray(self):
+        self.tray = TrayIcon(
+            tooltip=f"{APP_NAME} · 运行中", icon_path=ICON_PATH,
+            menu=[
+                ("显示 / 隐藏窗口", self.toggle_visible),
+                ("立即保存", lambda: self.flush_save(force=True)),
+                None,
+                ("打开数据文件夹", self.open_data_dir),
+                ("快捷键说明", self.show_help),
+                None,
+                ("退出 PinJot", self.on_close),
+            ])
+        if self.tray.ok:
+            self.root.after(120, self._poll_tray)
+
+    def _poll_tray(self):
+        for ev in self.tray.drain():
+            if ev == "left":
+                self.toggle_visible()
+            elif ev == "right":
+                self.tray.show_menu()
+        self.root.after(120, self._poll_tray)
+
+    def _tick_save(self):
+        """定时兜底：有改动就落盘，避免异常退出丢内容"""
+        if self._dirty:
+            self.flush_save()
+        self.root.after(30000, self._tick_save)
 
     def set_opacity(self, value):
         self.ui["opacity"] = value
@@ -341,7 +384,7 @@ class PinJot(NotePageMixin, PlanPageMixin):
         messagebox.showinfo(
             "快捷键与操作",
             "📌  左上角图钉：置顶 / 取消置顶\n"
-            "—   折叠窗口（只剩标题栏）\n"
+            "—   隐藏到系统托盘（点托盘图标唤回）\n"
             "◢   右下角拖动缩放\n"
             "右键  菜单：透明度、字号、数据目录\n\n"
             "Ctrl + Alt + N   显示 / 隐藏窗口\n"
@@ -349,6 +392,8 @@ class PinJot(NotePageMixin, PlanPageMixin):
             "Ctrl + S         立即保存\n"
             "Ctrl + Z         撤销输入\n"
             "双击任务序号     重新编辑\n\n"
+            "内容会自动保存（停止输入 0.6 秒后落盘，\n"
+            "隐藏到托盘和退出时也会保存）\n\n"
             f"数据存放：{DATA_FILE}",
             parent=self.root)
 
@@ -374,9 +419,9 @@ class PinJot(NotePageMixin, PlanPageMixin):
                 pass
         self._save_job = self.root.after(600, self.flush_save)
 
-    def flush_save(self, *_):
+    def flush_save(self, *_, force=False):
         self._save_job = None
-        if not self._dirty:
+        if not self._dirty and not force:
             return
         try:
             self.sync_note()
@@ -423,20 +468,12 @@ class PinJot(NotePageMixin, PlanPageMixin):
             pass
         self.root.after(150, self._poll_hotkey)
 
-    def toggle_visible(self):
-        if self.root.state() == "withdrawn" or not self.root.winfo_viewable():
-            self.root.deiconify()
-            self.root.lift()
-            if self.ui.get("topmost", True):
-                self.root.attributes("-topmost", True)
-        else:
-            self.root.withdraw()
-
     # ------------------------------------------------------------------ #
     # 键盘 / 恢复 / 关闭
     # ------------------------------------------------------------------ #
     def _bind_keys(self):
-        self.root.bind("<Control-s>", lambda e: self.flush_save() or "break")
+        self.root.bind("<Control-s>",
+                       lambda e: self.flush_save(force=True) or "break")
         self.root.bind("<Control-n>", lambda e: self.new_note() or "break")
         self.root.bind("<Escape>", lambda e: self.txt.focus_set())
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -463,23 +500,28 @@ class PinJot(NotePageMixin, PlanPageMixin):
         self.ui["opacity"] = float(u.get("opacity", 1.0))
         self.set_opacity(self.ui["opacity"])
         self.root.update_idletasks()
-        if u.get("collapsed"):
-            self.root.after(60, self.toggle_collapse)
         self.root.after(200, lambda: (self.txt.focus_set(), self.root.lift()))
         self.set_status("已就绪")
 
     def on_close(self):
+        """退出：无论走哪条路径都保证先落盘"""
         try:
-            self.sync_note()
-            self.ui.update({
-                "x": self.root.winfo_x(), "y": self.root.winfo_y(),
-                "w": self.root.winfo_width(), "h": self.root.winfo_height(),
-            })
-            save_data(self.data)
+            self.flush_save(force=True)
+        except Exception:
+            try:
+                self.sync_note()
+                save_data(self.data)
+            except Exception:
+                pass
         finally:
             try:
                 if getattr(self, "_hotkey_on", False):
                     self._user32.UnregisterHotKey(None, self._hotkey_id)
+            except Exception:
+                pass
+            try:
+                if getattr(self, "tray", None) and self.tray.ok:
+                    self.tray.destroy()
             except Exception:
                 pass
             self.root.destroy()

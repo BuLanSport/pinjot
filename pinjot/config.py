@@ -2,6 +2,7 @@
 """常量与配色。改主题只需要动这个文件。"""
 
 import sys
+from pathlib import Path
 
 APP_NAME = "PinJot"      # 同时作为数据目录名（%APPDATA%\PinJot）
 APP_TITLE = "钉记"
@@ -47,3 +48,14 @@ Ctrl + S          立即保存
 
 把这里的内容删掉，开始写你自己的笔记吧。
 """
+
+
+def resource_path(*parts) -> Path:
+    """定位随程序分发的资源文件（打包成 exe 后从临时解压目录取）。"""
+    base = getattr(sys, "_MEIPASS", None)
+    root = Path(base) if base else Path(__file__).resolve().parent.parent
+    return root.joinpath(*parts)
+
+
+ICON_PATH = resource_path("assets", "pinjot.ico")
+

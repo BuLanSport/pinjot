@@ -23,4 +23,4 @@
 from .window import PinJot, main
 
 __all__ = ["PinJot", "main"]
-__version__ = "1.1.0"
+__version__ = "1.2.0"
