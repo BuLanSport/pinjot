@@ -255,6 +255,8 @@ class PinJot(NotePageMixin, PlanPageMixin):
             m.add_command(label=f"字号 {size}",
                           command=lambda s=size: self.set_font_size(s))
         m.add_separator()
+        m.add_command(label="⌨  快捷键设置…", command=self.open_hotkey_settings)
+        m.add_separator()
         m.add_command(label="🧹  清空当前便签内容", command=self.clear_note)
         m.add_command(label="📂  打开数据文件夹", command=self.open_data_dir)
         m.add_separator()
@@ -452,6 +454,7 @@ class PinJot(NotePageMixin, PlanPageMixin):
         for k, b in self.tab_btns.items():
             b.configure(font=self.f_bold if k == self.ui.get("tab")
                         else self.f_body)
+        self._refresh_style_tags()      # 行内字号/粗体 tag 跟随全局字号
         self._render_tasks()
         self.set_status(f"字号 {size}")
         self.schedule_save()
@@ -464,11 +467,27 @@ class PinJot(NotePageMixin, PlanPageMixin):
             "—   隐藏到系统托盘（点托盘图标唤回）\n"
             "◢   右下角拖动缩放\n"
             "右键  菜单：透明度、字号、数据目录\n\n"
+            "知识库与笔记\n"
+            "＋ 知识库           新建知识库（如「书籍笔记」）\n"
+            "知识库行 ＋         在该知识库新建笔记\n"
+            "笔记行 ＋           新建子笔记（可无限嵌套）\n"
+            "▸ / ▾               展开 / 收起子笔记\n"
+            "行上右键            重命名、删除、新建子笔记\n\n"
+            "列表与格式（编辑正文时）\n"
+            "输入 1. 内容 回车    自动续号 2.\n"
+            "Tab                  增级（缩进成上一项的子节点）\n"
+            "Shift + Tab          降级一级\n"
+            "退格（行首/序号前）   自动降级；顶级再退格清掉列表\n"
+            "Ctrl+Shift+7         数字编号（可改：设置→快捷键设置）\n"
+            "Ctrl+Shift+8         符号列表（可改：设置→快捷键设置）\n"
+            "🖍 A＋ A－          选中文字改颜色、字号\n"
+            "B  I  U              加粗 / 斜体 / 下划线\n"
+            "⌫ 按钮               清除选中文字的格式\n\n"
             "Ctrl + Alt + N   显示 / 隐藏窗口\n"
-            "Ctrl + N         新建便签\n"
+            "Ctrl + N         新建笔记\n"
             "Ctrl + S         立即保存\n"
             "Ctrl + Z         撤销输入\n"
-            "双击任务序号     重新编辑\n\n"
+            "Ctrl + 滚轮      调整全文字号\n\n"
             "内容会自动保存（停止输入 0.6 秒后落盘，\n"
             "隐藏到托盘和退出时也会保存）\n\n"
             f"数据存放：{DATA_FILE}",
